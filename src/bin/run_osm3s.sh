@@ -57,6 +57,8 @@ Environment variables (overridden by arguments):
 
 Environment variables (no argument equivalent):
   OVERPASS_SOCKET_DIR           Directory for dispatcher socket files (default: DB_DIR)
+  OVERPASS_UPDATE_FREQUENCY     Update interval of the replication source in seconds:
+                                60, 3600, or 86400 (default: detected from DIFF_URL)
   OVERPASS_STALL_MULTIPLIER     Stall detection threshold as a multiple of update
                                 frequency
   OVERPASS_CLEANUP_INTERVAL     How often to run diff cleanup, in hours (default: 24)
@@ -204,6 +206,7 @@ OVERPASS_DB_DIR="$(realpath "$OVERPASS_DB_DIR")"
 # ============================================================================
 
 OVERPASS_SOCKET_DIR=${OVERPASS_SOCKET_DIR:-"$OVERPASS_DB_DIR"}
+OVERPASS_UPDATE_FREQUENCY=${OVERPASS_UPDATE_FREQUENCY:-}
 OVERPASS_STALL_MULTIPLIER=${OVERPASS_STALL_MULTIPLIER:-}
 OVERPASS_CLEANUP_INTERVAL=${OVERPASS_CLEANUP_INTERVAL:-24}
 OVERPASS_CLEANUP_KEEP_HOURS=${OVERPASS_CLEANUP_KEEP_HOURS:-72}
@@ -226,6 +229,12 @@ if ! [[ -d "$OVERPASS_SOCKET_DIR" && -w "$OVERPASS_SOCKET_DIR" ]]; then
 fi
 
 OVERPASS_SOCKET_DIR="$(realpath "$OVERPASS_SOCKET_DIR")"
+
+if [[ -n "$OVERPASS_UPDATE_FREQUENCY" && ! "$OVERPASS_UPDATE_FREQUENCY" =~ ^(60|3600|86400)$ ]]; then
+  message "ERROR: OVERPASS_UPDATE_FREQUENCY must be 60, 3600, or 86400, got: '$OVERPASS_UPDATE_FREQUENCY'"
+  usage
+  exit 1
+fi
 
 if [[ -n "$OVERPASS_STALL_MULTIPLIER" && ! "$OVERPASS_STALL_MULTIPLIER" =~ ^[1-9][0-9]*$ ]]; then
   message "ERROR: OVERPASS_STALL_MULTIPLIER must be a positive integer, got: '$OVERPASS_STALL_MULTIPLIER'"
@@ -912,7 +921,10 @@ validate_meta_mode
 
 delete_stale_socket_files
 
-if ! OVERPASS_UPDATE_FREQUENCY=$(detect_update_frequency); then
+if [[ -n "$OVERPASS_UPDATE_FREQUENCY" ]]; then
+  message "Using configured update frequency: ${OVERPASS_UPDATE_FREQUENCY}s"
+  export OVERPASS_UPDATE_FREQUENCY
+elif ! OVERPASS_UPDATE_FREQUENCY=$(detect_update_frequency); then
   message "ERROR: Unable to detect update frequency from $OVERPASS_DIFF_URL"
   exit 1
 else
