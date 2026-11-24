@@ -418,7 +418,7 @@ get_path() {
 
 get_last_modified() {
   local LAST_MODIFIED
-  LAST_MODIFIED=$(curl -sIL "$1" \
+  LAST_MODIFIED=$(curl -fsSIL --retry 3 --retry-delay 5 --retry-all-errors "$1" \
     | grep -i '^last-modified:' | tail -1 | tr -d '\r' | sed 's/^[^:]*: //')
   [[ -n "$LAST_MODIFIED" ]] || return 1
   date -d "$LAST_MODIFIED" +%s
@@ -432,7 +432,7 @@ detect_update_frequency()
 {
   local CURRENT_SEQ LAST_MODIFIED_0 LAST_MODIFIED_1 LAST_MODIFIED_2 INTERVAL_1 INTERVAL_2 MEAN_INTERVAL
 
-  CURRENT_SEQ=$(curl -sL "${OVERPASS_DIFF_URL%/}/state.txt" \
+  CURRENT_SEQ=$(curl -fsSL --retry 3 --retry-delay 5 --retry-all-errors "${OVERPASS_DIFF_URL%/}/state.txt" \
     | grep '^sequenceNumber=' | cut -d= -f2 | tr -d '\r')
   if [[ ! "$CURRENT_SEQ" =~ ^[1-9][0-9]*$ ]]; then
     message "ERROR: Failed to read sequence number from ${OVERPASS_DIFF_URL%/}/state.txt"
